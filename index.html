@@ -1,43 +1,334 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Deployment AI Siswa</title>
-    
-    <!-- Memuat mesin AI (ONNX Runtime Web) agar model bisa berjalan langsung di browser[cite: 2] -->
+
+    <!-- ONNX Runtime -->
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web/dist/ort.min.js"></script>
-    
+
+    <!-- Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
     <style>
-        body { background-color: #121212; color: white; font-family: 'Courier New', Courier, monospace; display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .container { position: relative; width: 640px; height: 480px; border: 2px solid #555; border-radius: 10px; overflow: hidden; }
-        video, canvas#overlay { position: absolute; top: 0; left: 0; width: 640px; height: 480px; }
-        canvas#overlay { z-index: 10; pointer-events: none; }
-        #status { margin: 15px; padding: 10px; border-radius: 5px; background: #1e1e1e; border: 1px solid #444; width: 600px; text-align: center; }
-        .btn-start { padding: 12px 30px; font-size: 1.1rem; cursor: pointer; background: #FF3B30; color: white; border: none; border-radius: 5px; font-weight: bold; }
-        .btn-start:hover { background: #cc2f26; }
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box;
+        }
+
+        body{
+            min-height:100vh;
+            font-family:'Poppins', sans-serif;
+            background:
+                radial-gradient(circle at top left, #1f1f4d, #0a0a0a 45%),
+                linear-gradient(135deg,#0f172a,#020617);
+            color:white;
+            display:flex;
+            justify-content:center;
+            align-items:center;
+            padding:30px;
+            overflow-x:hidden;
+        }
+
+        .background-glow{
+            position:fixed;
+            width:500px;
+            height:500px;
+            border-radius:50%;
+            background:rgba(0,255,255,0.12);
+            filter:blur(120px);
+            top:-150px;
+            left:-150px;
+            z-index:-1;
+        }
+
+        .background-glow2{
+            position:fixed;
+            width:400px;
+            height:400px;
+            border-radius:50%;
+            background:rgba(255,0,128,0.12);
+            filter:blur(120px);
+            bottom:-120px;
+            right:-120px;
+            z-index:-1;
+        }
+
+        .main-card{
+            width:100%;
+            max-width:900px;
+            background:rgba(255,255,255,0.05);
+            border:1px solid rgba(255,255,255,0.1);
+            backdrop-filter:blur(18px);
+            border-radius:28px;
+            padding:30px;
+            box-shadow:
+                0 0 25px rgba(0,0,0,0.5),
+                0 0 60px rgba(0,255,255,0.08);
+            animation:fadeIn 1s ease;
+        }
+
+        @keyframes fadeIn{
+            from{
+                opacity:0;
+                transform:translateY(20px);
+            }
+            to{
+                opacity:1;
+                transform:translateY(0);
+            }
+        }
+
+        .header{
+            text-align:center;
+            margin-bottom:25px;
+        }
+
+        .header h1{
+            font-size:2.3rem;
+            font-weight:700;
+            background:linear-gradient(90deg,#00f5ff,#00ff99);
+            -webkit-background-clip:text;
+            -webkit-text-fill-color:transparent;
+            margin-bottom:10px;
+        }
+
+        .header p{
+            color:#cbd5e1;
+            font-size:1rem;
+        }
+
+        .ai-badge{
+            display:inline-block;
+            margin-top:12px;
+            padding:8px 18px;
+            border-radius:999px;
+            background:rgba(0,255,200,0.15);
+            border:1px solid rgba(0,255,200,0.4);
+            color:#7fffd4;
+            font-size:0.9rem;
+            letter-spacing:1px;
+        }
+
+        .camera-wrapper{
+            position:relative;
+            width:100%;
+            max-width:760px;
+            margin:25px auto;
+            border-radius:24px;
+            overflow:hidden;
+            border:2px solid rgba(255,255,255,0.08);
+            box-shadow:
+                0 0 30px rgba(0,0,0,0.4),
+                0 0 25px rgba(0,255,255,0.08);
+        }
+
+        .camera-wrapper::before{
+            content:"";
+            position:absolute;
+            inset:0;
+            background:linear-gradient(
+                135deg,
+                rgba(255,255,255,0.08),
+                transparent
+            );
+            z-index:2;
+            pointer-events:none;
+        }
+
+        video,
+        canvas#overlay{
+            position:absolute;
+            top:0;
+            left:0;
+            width:100%;
+            height:100%;
+        }
+
+        video{
+            position:relative;
+            z-index:1;
+            background:black;
+        }
+
+        canvas#overlay{
+            z-index:5;
+            pointer-events:none;
+        }
+
+        .camera-frame{
+            aspect-ratio: 4 / 3;
+            width:100%;
+            position:relative;
+        }
+
+        .status-container{
+            display:flex;
+            justify-content:center;
+            margin-top:20px;
+        }
+
+        #status{
+            width:100%;
+            max-width:500px;
+            padding:14px 20px;
+            border-radius:16px;
+            background:rgba(255,255,255,0.06);
+            border:1px solid rgba(255,255,255,0.08);
+            color:#00ffae;
+            text-align:center;
+            font-weight:600;
+            letter-spacing:1px;
+            box-shadow:0 0 15px rgba(0,255,170,0.1);
+        }
+
+        .controls{
+            display:flex;
+            justify-content:center;
+            gap:15px;
+            margin-top:25px;
+            flex-wrap:wrap;
+        }
+
+        .btn{
+            padding:14px 30px;
+            border:none;
+            border-radius:16px;
+            font-size:1rem;
+            font-weight:600;
+            cursor:pointer;
+            transition:0.3s ease;
+            position:relative;
+            overflow:hidden;
+        }
+
+        .btn::before{
+            content:"";
+            position:absolute;
+            top:0;
+            left:-100%;
+            width:100%;
+            height:100%;
+            background:linear-gradient(
+                90deg,
+                transparent,
+                rgba(255,255,255,0.25),
+                transparent
+            );
+            transition:0.5s;
+        }
+
+        .btn:hover::before{
+            left:100%;
+        }
+
+        .btn-start{
+            background:linear-gradient(135deg,#00c6ff,#0072ff);
+            color:white;
+            box-shadow:0 0 20px rgba(0,114,255,0.35);
+        }
+
+        .btn-start:hover{
+            transform:translateY(-3px) scale(1.03);
+            box-shadow:0 0 30px rgba(0,114,255,0.6);
+        }
+
+        .btn-stop{
+            background:linear-gradient(135deg,#ff416c,#ff4b2b);
+            color:white;
+            box-shadow:0 0 20px rgba(255,75,43,0.35);
+        }
+
+        .btn-stop:hover{
+            transform:translateY(-3px) scale(1.03);
+            box-shadow:0 0 30px rgba(255,75,43,0.6);
+        }
+
+        .footer{
+            margin-top:30px;
+            text-align:center;
+            color:#94a3b8;
+            font-size:0.9rem;
+        }
+
+        .footer span{
+            color:#00f5ff;
+            font-weight:600;
+        }
+
+        /* Responsive */
+        @media(max-width:768px){
+            .main-card{
+                padding:20px;
+            }
+
+            .header h1{
+                font-size:1.7rem;
+            }
+
+            .btn{
+                width:100%;
+            }
+        }
     </style>
 </head>
 <body>
 
-    <!-- GANTI BAGIAN INI dengan judul proyek kalian -->
-    <h1>🛡️ Proyek AI: Deteksi Otomatis</h1>
-    <p>Dibuat oleh: [a,d,r,f]</p>
-    
-    <button id="btn-init" class="btn-start">AKTIFKAN KAMERA</button>
-    <div id="status">STATUS: MATI</div>
+    <div class="background-glow"></div>
+    <div class="background-glow2"></div>
 
-    <div class="container">
-        <!-- Elemen video untuk menampilkan gambar langsung dari kamera laptop/HP[cite: 2] -->
-        <video id="webcam" playsinline muted></video>
-        <!-- Kanvas transparan untuk menggambar kotak deteksi di atas video kamera[cite: 2] -->
-        <canvas id="overlay" width="640" height="480"></canvas>
+    <div class="main-card">
+
+        <div class="header">
+            <h1>🛡️ PROYEK AI DETEKSI OTOMATIS</h1>
+            <p>Sistem Deteksi Real-Time Menggunakan Kamera & Artificial Intelligence</p>
+
+            <div class="ai-badge">
+                ⚡ Powered by ONNX Runtime AI
+            </div>
+        </div>
+
+        <div class="camera-wrapper">
+            <div class="camera-frame">
+
+                <!-- Kamera -->
+                <video id="webcam" playsinline muted autoplay></video>
+
+                <!-- Overlay -->
+                <canvas id="overlay" width="640" height="480"></canvas>
+
+            </div>
+        </div>
+
+        <div class="status-container">
+            <div id="status">
+                🔴 STATUS : SISTEM BELUM AKTIF
+            </div>
+        </div>
+
+        <div class="controls">
+            <button id="btn-init" class="btn btn-start">
+                🎥 AKTIFKAN KAMERA
+            </button>
+
+            <button id="btn-stop" class="btn btn-stop">
+                ⛔ MATIKAN
+            </button>
+        </div>
+
+        <!-- Processor Canvas -->
+        <canvas id="processor" width="640" height="640" style="display:none;"></canvas>
+
+        <div class="footer">
+            Dibuat oleh <span>[a,d,r,f]</span> • AI Computer Vision Project
+        </div>
+
     </div>
 
-    <!-- Kanvas tersembunyi yang digunakan sistem untuk menyesuaikan ukuran gambar bagi AI (Jangan dihapus!)[cite: 2] -->
-    <canvas id="processor" width="640" height="640" style="display:none;"></canvas>
-
-    <!-- Memanggil file logika AI kalian -->
+    <!-- App Logic -->
     <script src="app.js"></script>
+
 </body>
 </html>
